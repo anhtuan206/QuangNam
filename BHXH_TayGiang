@@ -1,0 +1,154 @@
+#THIẾT BỊ CŨ
+configure
+show | compare
+set system root-authentication encrypted-password "$5$2f.kmx5/$iwLH4StcdkpybWNRaZVu36qAPvuq3FwY0sBD3gcjON9"
+commit and-quit
+exit
+root
+1234Aa@
+mount_msdosfs /dev/da1s1 /mnt
+mkdir /mnt/BHXH_TayGiang_backup
+cp /config/*.gz /mnt/BHXH_TayGiang_backup/
+ls /mnt/BHXH_TayGiang_backup
+cli
+request system software add /mnt/junos-srxsme-18.2R3.4.tgz no-copy best-effort-load no-validate
+exit
+umount /mnt
+
+##Báo thứ tự chuyển interface cho kỹ thuật tại site
+
+cli
+set chassis cluster cluster-id 1 node 1
+configure
+delete
+yes
+set system root-authentication encrypted-password "$5$2f.kmx5/$iwLH4StcdkpybWNRaZVu36qAPvuq3FwY0sBD3gcjON9"
+set chassis cluster redundancy-group 0 node 0 priority 200
+set chassis cluster redundancy-group 0 node 1 priority 100
+set protocols l2-learning global-mode switching
+run clear dhcp server binding all
+commit and-quit
+request system reboot
+##Cắm dây Ctrl và Fab kết nối 2 node
+
+cli
+show configuration
+
+request system autorecovery state save
+request system snapshot slice alternate node local
+##Chuyển dây Viettel về lại node 1
+
+
+#THIẾT BỊ MỚI
+mount_msdosfs /dev/da1s1 /mnt
+cli
+configure
+delete
+yes
+set system root-authentication encrypted-password "$5$2f.kmx5/$iwLH4StcdkpybWNRaZVu36qAPvuq3FwY0sBD3gcjON9"
+commit and-quit
+set chassis cluster cluster-id 1 node 0
+configure
+set chassis cluster redundancy-group 0 node 0 priority 200
+set chassis cluster redundancy-group 0 node 1 priority 100
+commit and-quit
+request system software add /mnt/junos-srxsme-18.2R3.4.tgz no-copy reboot best-effort-load no-validate
+
+##Gắn USB từ thiết bị cũ
+mount_msdosfs /dev/da1s1 /mnt
+cli
+configure
+load merge /mnt/BHXH_TayGiang/juniper.conf.gz
+delete interfaces ge-0/0/3
+set interfaces ge-0/0/3 description "Internet IaGrai"
+set interfaces ge-0/0/3 unit 0 encapsulation ppp-over-ether
+set interfaces pp0 unit 0 pppoe-options underlying-interface ge-0/0/3.0
+set security zones security-zone INTERNET interfaces ge-0/0/3.0
+delete security zones security-zone INTERNET interfaces ge-0/0/0.0
+delete interfaces ge-0/0/0
+delete interfaces ge-0/0/1
+delete interfaces ge-0/0/2
+delete interfaces ge-0/0/5.0
+delete interfaces ge-0/0/6.0
+delete interfaces ge-0/0/7.0
+delete security zones security-zone WAN interfaces ge-0/0/6.0
+delete security zones security-zone WAN interfaces ge-0/0/7.0
+delete security zones security-zone WIFI interfaces ge-0/0/5.0
+set interfaces irb unit 3 description WAN_NT_VIETTEL
+set interfaces irb unit 3 family inet address 172.17.49.4/24
+set interfaces irb unit 4 description WAN_NT_VNPT
+set interfaces irb unit 4 family inet address 172.18.49.4/24
+set interfaces irb unit 5 description Connect_to_WIFI
+set interfaces irb unit 5 family inet address 10.49.103.1/24
+set vlans WAN_NT_VIETTEL vlan-id 3
+set vlans WAN_NT_VIETTEL l3-interface irb.3
+set vlans WAN_NT_VNPT vlan-id 4
+set vlans WAN_NT_VNPT l3-interface irb.4
+set vlans CONNECT_TO_WIFI vlan-id 5
+set vlans CONNECT_TO_WIFI l3-interface irb.5
+set security zones security-zone WAN interfaces irb.3
+set security zones security-zone WAN interfaces irb.4
+set security zones security-zone WIFI interfaces irb.5
+set security zones security-zone INTERNET interfaces ge-3/0/3.0
+set interfaces ge-0/0/4 unit 0 family ethernet-switching vlan members LAN
+set interfaces ge-0/0/5 description Connect_to_WIFI_Huyen_TayGiang
+set interfaces ge-0/0/5 unit 0 family ethernet-switching vlan members CONNECT_TO_WIFI
+set interfaces ge-0/0/6 description WAN_NT_Huyen_TayGiang_Viettel
+set interfaces ge-0/0/6 unit 0 family ethernet-switching vlan members WAN_NT_VIETTEL
+set interfaces ge-0/0/7 description WAN_NT_VNPT_Huyen_TayGiang
+set interfaces ge-0/0/7 unit 0 family ethernet-switching vlan members WAN_NT_VNPT
+set interfaces ge-3/0/3  unit 0 encapsulation ppp-over-ether
+set interfaces ge-3/0/4 unit 0 family ethernet-switching vlan members LAN
+set interfaces ge-3/0/5 description Connect_to_WIFI_Huyen_TayGiang
+set interfaces ge-3/0/5 unit 0 family ethernet-switching vlan members CONNECT_TO_WIFI
+set interfaces ge-3/0/6 description WAN_NT_Huyen_TayGiang_Viettel
+set interfaces ge-3/0/6 unit 0 family ethernet-switching vlan members WAN_NT_VIETTEL
+set interfaces ge-3/0/7 description WAN_NT_VNPT_Huyen_TayGiang
+set interfaces ge-3/0/7 unit 0 family ethernet-switching vlan members WAN_NT_VNPT
+set system services dhcp-local-server group BHXH-WIFI interface irb.5
+set groups node0 system host-name BHXH_TayGiang
+set groups node1 system host-name BHXH_TayGiang
+set groups node0 interfaces fxp0 unit 0 family inet address 192.168.100.1/24
+set groups node1 interfaces fxp0 unit 0 family inet address 192.168.100.2/24
+set apply-groups ${node}
+set interfaces fab0 fabric-options member-interfaces ge-0/0/2
+set interfaces fab1 fabric-options member-interfaces ge-3/0/2
+commit and-quit
+request system reboot
+
+##Chuyển dây từ thiết bị cũ lên thiết bị mới
+
+##Kiểm tra các kết nối: INTERNET, LAN, WAN VNPT, WAN VIETTEL, WIFI
+
+
+
+
+
+
+
+
+
+
+
+
+
+request system license add terminal
+request system autorecovery state save
+request system snapshot slice alternate node local
+show chassis cluster status | refresh 5
+
+
+configure
+commit
+request system reboot node 1
+show chassis cluster status | refresh 5
+request system configuration rescue save
+
+
+
+
+mount_msdosfs /dev/da1s1 /mnt
+mkdir /mnt/BHXH_TayGiang_new
+cp /config/*.gz /mnt/BHXH_TayGiang_new
+umount /mnt
+
